@@ -1,0 +1,5 @@
+{
+    "intelOneAPI.analysis.binary-path": "c:\\Projects\\Rust\\json\\target\\release\\json.exe",
+    "intelOneAPI.analysis.vtune.install-root": "C:\\Program Files (x86)\\IntelSWTools\\VTune Profiler 2020\\",
+    "intelOneAPI.analysis.vtune.project-folder": "c:\\Projects\\Rust\\json\\vtune"
+}

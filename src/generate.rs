@@ -11,43 +11,43 @@ fn descend(node: &Node, tree: &Tree, buffer: &mut String) {
         Node::Null => buffer.push_str("null"),
         Node::Number(value) => buffer.push_str(&value.to_string()),
         Node::Boolean(value) => buffer.push_str(if *value { "true" } else { "false" }),
-        Node::String(range) => buffer.push_str(&tree.text[range.0..range.1]),
-        Node::Array(range) => {
-            let items = &tree.nodes[range.0..range.1];
-            if items.len() == 0 {
-                buffer.push_str("[]");
-            } else {
-                buffer.push('[');
-                let mut first = false;
-                for item in items {
-                    if first {
-                        first = false
-                    } else {
-                        buffer.push(',')
+        _ => {
+            if let Some(value) = tree.get_string(node) {
+                buffer.push_str(value);
+            } else if let Some(items) = tree.get_items(node) {
+                if items.len() == 0 {
+                    buffer.push_str("[]");
+                } else {
+                    buffer.push('[');
+                    let mut first = false;
+                    for item in items {
+                        if first {
+                            first = false
+                        } else {
+                            buffer.push(',')
+                        }
+                        descend(item, tree, buffer);
                     }
-                    descend(item, tree, buffer);
+                    buffer.push(']');
                 }
-                buffer.push(']');
-            }
-        }
-        Node::Object(range) => {
-            let members = &tree.nodes[range.0..range.1];
-            if members.len() == 0 {
-                buffer.push_str("{}");
-            } else {
-                buffer.push('{');
-                let mut first = false;
-                for i in 0..members.len() {
-                    if first {
-                        first = false
-                    } else {
-                        buffer.push(',')
+            } else if let Some(members) = tree.get_members(node) {
+                if members.len() == 0 {
+                    buffer.push_str("{}");
+                } else {
+                    buffer.push('{');
+                    let mut first = false;
+                    for i in 0..members.len() {
+                        if first {
+                            first = false
+                        } else {
+                            buffer.push(',')
+                        }
+                        descend(&members[i], tree, buffer);
+                        buffer.push(':');
+                        descend(&members[i + 1], tree, buffer);
                     }
-                    descend(&members[i], tree, buffer);
-                    buffer.push(':');
-                    descend(&members[i + 1], tree, buffer);
+                    buffer.push('}');
                 }
-                buffer.push('}');
             }
         }
     }

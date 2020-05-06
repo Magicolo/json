@@ -1,10 +1,12 @@
 mod convert;
 mod generate;
+mod node;
 mod parse;
 mod serializers;
 mod tree;
 pub use convert::*;
 pub use generate::*;
+pub use node::*;
 pub use parse::*;
 pub use serializers::*;
 pub use tree::*;

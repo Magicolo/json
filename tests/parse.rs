@@ -6,11 +6,15 @@ use proptest::prelude::*;
 use std::fs;
 
 fn parse(json: &str) -> Node {
-    json::parse(json).unwrap().root
+    let mut tree = json::parse(json).unwrap();
+    tree.process();
+    tree.root
 }
 
 fn convert<T: Serializable>(value: &T) -> Node {
-    json::convert(value).root
+    let mut tree = json::convert(value);
+    tree.process();
+    tree.root
 }
 
 fn generate<T: Serializable>(value: &T) -> String {
@@ -18,25 +22,75 @@ fn generate<T: Serializable>(value: &T) -> String {
 }
 
 #[test]
-fn parse_empty_object() {
-    assert_eq!(parse("{}"), Node::Object((0, 0)));
+#[should_panic]
+fn parse_empty() {
+    parse("");
 }
+
+#[test]
+fn parse_empty_object() {
+    assert_eq!(parse("{}"), Node::Object(Vec::new()));
+}
+
+#[test]
+#[should_panic]
+fn parse_unbalanced_object() {
+    parse("{");
+}
+
 #[test]
 fn parse_empty_array() {
-    assert_eq!(parse("[]"), Node::Array((0, 0)));
+    assert_eq!(parse("[]"), Node::Array(Vec::new()));
 }
+
+#[test]
+#[should_panic]
+fn parse_unbalanced_array() {
+    parse("[");
+}
+
 #[test]
 fn parse_empty_string() {
-    assert_eq!(parse(r#""""#), Node::String((0, 0)));
+    assert_eq!(parse(r#""""#), Node::String("".into()));
 }
+
+#[test]
+#[should_panic]
+fn parse_unbalanced_string() {
+    parse(r#"""#);
+}
+
+#[test]
+#[should_panic]
+fn parse_quote_string() {
+    let value = r#"""""#;
+    let tree = json::parse(value).unwrap();
+    assert_eq!(tree.get_string(&tree.root).unwrap(), r#"""#);
+}
+
+#[test]
+fn parse_tab_string() {
+    let value = r#""\t""#;
+    let tree = json::parse(value).unwrap();
+    assert_eq!(tree.get_string(&tree.root).unwrap(), "\t");
+}
+
 #[test]
 fn parse_zero() {
     assert_eq!(parse("0"), Node::Number(0.0));
 }
+
+#[test]
+#[should_panic]
+fn parse_missing_number_after_minus() {
+    parse("-");
+}
+
 #[test]
 fn parse_negative_with_0_exponent() {
     assert_eq!(parse("-1e0"), Node::Number(-1.0));
 }
+
 #[test]
 fn parse_twitter() {
     const TWITTER: &str = r#"resources/twitter.json"#;
@@ -84,4 +138,32 @@ proptest! {
     fn parse_integer_vector(values: Vec<i32>) {
         prop_assert_eq!(parse(&generate(&values)), convert(&values));
     }
+
+    #[test]
+    fn parse_alpha_numerical_strings(value in "[a-zA-Z0-9]+") {
+        let tree = json::parse(&format!(r#""{0}""#, value)).unwrap();
+        prop_assert_eq!(tree.get_string(&tree.root).unwrap(), &value);
+    }
+
+    #[test]
+    fn parse_escaped_strings(value in r"(\[nrtbf/\])+") {
+        let escaped = value
+            .replace(r"\n", "\n")
+            .replace(r"\r", "\r")
+            .replace(r"\t", "\t")
+            .replace(r"\b", "\u{0008}")
+            .replace(r"\f", "\u{000C}")
+            .replace(r"\\", r"\")
+            .replace(r#"\""#, r#"""#)
+            .replace(r"\/", "/");
+        let tree = json::parse(&format!(r#""{0}""#, escaped)).unwrap();
+        prop_assert_eq!(tree.get_string(&tree.root).unwrap(), &value);
+    }
+
+    // there seem to be a bug in regexes...
+    // #[test]
+    // fn parse_unicode_strings(value in r"\u[0-9a-fA-F]{4}") {
+    //     println!("{}", &value);
+    //     panic!("sdfkj");
+    // }
 }

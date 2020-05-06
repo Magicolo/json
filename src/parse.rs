@@ -73,6 +73,19 @@ const NEGATIVES: [f64; 309] = [
 ];
 
 #[inline]
+fn excerpt<'a>(stream: &'a Stream) -> &'a str {
+    std::str::from_utf8(
+        &stream.characters[(stream.index - 1)..(stream.index + 25).min(stream.count)],
+    )
+    .unwrap()
+}
+
+#[inline]
+fn error<T>(message: &str, stream: &Stream) -> Result<T, String> {
+    Err(format!("{0} At {1}.", message, excerpt(stream)))
+}
+
+#[inline]
 fn as_number(character: u8) -> Option<u8> {
     match character {
         b'0'..=b'9' => Some(character - b'0'),
@@ -137,8 +150,8 @@ fn parse_exponent(stream: &mut Stream, value: f64) -> (Option<u8>, f64) {
 }
 
 pub fn parse(json: &str) -> Result<Tree, String> {
-    let mut nodes = Vec::with_capacity(json.len() / 8);
-    let mut text = String::with_capacity(json.len() / 8);
+    let mut nodes = Vec::with_capacity(64.max(json.len() / 8));
+    let mut text = String::with_capacity(64.max(json.len() / 8));
     let mut stack = Vec::with_capacity(64);
     let mut squares = Vec::with_capacity(8);
     let mut curlies = Vec::with_capacity(8);
@@ -162,7 +175,7 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                                 break;
                             }
                         }
-                        _ => return Err(format!("Expected digts after minus character.")),
+                        _ => return error("Expected digts after minus character.", &stream),
                     }
                 }
             }
@@ -186,7 +199,7 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                 {
                     stack.push(Node::Null);
                 } else {
-                    return Err(format!("Expected 'null'."));
+                    return error("Expected 'null'.", &stream);
                 }
             }
             b'f' | b'F' => {
@@ -195,7 +208,7 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                 {
                     stack.push(Node::Boolean(false));
                 } else {
-                    return Err(format!("Expected 'false'."));
+                    return error("Expected 'false'.", &stream);
                 }
             }
             b't' | b'T' => {
@@ -204,7 +217,7 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                 {
                     stack.push(Node::Boolean(true));
                 } else {
-                    return Err(format!("Expected 'true'."));
+                    return error("Expected 'true'.", &stream);
                 }
             }
             b'"' => {
@@ -245,25 +258,28 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                                                 if let Some(value) = std::char::from_u32(hex) {
                                                     text.push(value);
                                                 } else {
-                                                    return Err(format!(
-                                                        "Expected valid u32 character."
-                                                    ));
+                                                    return error(
+                                                        "Expected valid u32 character.",
+                                                        &stream,
+                                                    );
                                                 }
                                             } else {
-                                                return Err(format!(
-                                                    "Expected valid hex characters."
-                                                ));
+                                                return error(
+                                                    "Expected valid hex characters.",
+                                                    &stream,
+                                                );
                                             }
                                         }
                                         _ => {
-                                            return Err(format!(
-                                                "Expected valid escaped character."
-                                            ))
+                                            return error(
+                                                "Expected valid escaped character.",
+                                                &stream,
+                                            )
                                         }
                                     }
                                     index = stream.index;
                                 } else {
-                                    return Err(format!("Expected escaped character after '\'."));
+                                    return error("Expected escaped character after '\'.", &stream);
                                 }
                             }
                             b'"' => {
@@ -271,13 +287,13 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                                 if index < end {
                                     text.push_str(&json[index..end]);
                                 }
-                                stack.push(Node::String((start, text.len())));
+                                stack.push(Node::RawString((start, text.len())));
                                 break;
                             }
                             _ => {}
                         }
                     } else {
-                        return Err(format!("Expected quotes to be balanced."));
+                        return error("Expected quotes to be balanced.", &stream);
                     }
                 }
             }
@@ -286,9 +302,9 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                 if let Some(bracket) = squares.pop() {
                     let start = nodes.len();
                     nodes.extend(stack.drain(bracket..));
-                    stack.push(Node::Array((start, nodes.len())));
+                    stack.push(Node::RawArray((start, nodes.len())));
                 } else {
-                    return Err(format!("Expected square brackets to be balanced."));
+                    return error("Expected square brackets to be balanced.", &stream);
                 }
             }
             b'{' => curlies.push(stack.len()),
@@ -296,19 +312,19 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                 if let Some(bracket) = curlies.pop() {
                     let start = nodes.len();
                     nodes.extend(stack.drain(bracket..));
-                    stack.push(Node::Object((start, nodes.len())));
+                    stack.push(Node::RawObject((start, nodes.len())));
                 } else {
-                    return Err(format!("Expected curly brackets to be balanced."));
+                    return error("Expected curly brackets to be balanced.", &stream);
                 }
             }
             b' ' | b'\n' | b'\t' | b'\r' | b':' | b',' => {}
-            _ => return Err(format!("Expected to find valid character.")),
+            _ => return error("Expected to find valid character.", &stream),
         }
     }
 
     if let Some(root) = stack.pop() {
         Ok(Tree { root, nodes, text })
     } else {
-        Err(format!("Expected at least 1 node be parsed."))
+        error("Expected at least 1 node be parsed.", &stream)
     }
 }

@@ -6,6 +6,9 @@ version = "0.1.0"
 criterion = "0.3.2"
 proptest = "0.9.6"
 
+[[bin]]
+name = "json"
+
 [[bench]]
 name = "parse"
 harness = false
