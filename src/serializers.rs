@@ -1,25 +1,30 @@
 use crate::*;
 
-pub trait Serializable: Sized {
+pub trait Convert {
     fn convert(&self) -> Node;
-    fn instantiate<'a>(node: &'a Node, tree: &'a Tree) -> Option<Self>;
-    fn initialize<'a>(&mut self, node: &'a Node, tree: &'a Tree);
+}
+
+pub trait Serializable: Convert + Sized {
+    fn instantiate(node: &Node, tree: &Tree) -> Option<Self>;
+    fn initialize(&mut self, node: &Node, tree: &Tree);
 }
 
 macro_rules! number {
     ($type: ident) => {
-        impl Serializable for $type {
+        impl Convert for $type {
             fn convert(&self) -> Node {
                 Tree::number(*self as f64)
             }
-            fn instantiate<'a>(node: &'a Node, _: &'a Tree) -> Option<Self> {
+        }
+        impl Serializable for $type {
+            fn instantiate(node: &Node, _: &Tree) -> Option<Self> {
                 if let Node::Number(value) = node {
                     Some(*value as $type)
                 } else {
                     None
                 }
             }
-            fn initialize<'a>(&mut self, _: &'a Node, _: &'a Tree) {}
+            fn initialize(&mut self, _: &Node, _: &Tree) {}
         }
     };
 }
@@ -39,24 +44,28 @@ number!(u128);
 number!(f32);
 number!(f64);
 
-impl Serializable for bool {
+impl Convert for bool {
     fn convert(&self) -> Node {
         Tree::boolean(*self)
     }
-    fn instantiate<'a>(node: &'a Node, _: &'a Tree) -> Option<Self> {
+}
+impl Serializable for bool {
+    fn instantiate(node: &Node, _: &Tree) -> Option<Self> {
         if let Node::Boolean(value) = node {
             Some(*value)
         } else {
             None
         }
     }
-    fn initialize<'a>(&mut self, _: &'a Node, _: &'a Tree) {}
+    fn initialize(&mut self, _: &Node, _: &Tree) {}
 }
 
-impl Serializable for char {
+impl Convert for char {
     fn convert(&self) -> Node {
         Tree::number(*self as u8 as f64)
     }
+}
+impl Serializable for char {
     fn instantiate(node: &Node, tree: &Tree) -> Option<Self> {
         if let Node::Number(value) = node {
             Some(*value as u8 as char)
@@ -69,17 +78,25 @@ impl Serializable for char {
     fn initialize(&mut self, _: &Node, _: &Tree) {}
 }
 
-impl Serializable for String {
+impl Convert for String {
     fn convert(&self) -> Node {
         Tree::string(self)
     }
+}
+impl Serializable for String {
     fn instantiate(node: &Node, tree: &Tree) -> Option<Self> {
         tree.get_string(node).map(|value| value.to_string())
     }
     fn initialize(&mut self, _: &Node, _: &Tree) {}
 }
 
-impl<T: Serializable> Serializable for Option<T> {
+impl Convert for &str {
+    fn convert(&self) -> Node {
+        Tree::string(self)
+    }
+}
+
+impl<T: Convert> Convert for Option<T> {
     fn convert(&self) -> Node {
         if let Some(value) = self {
             value.convert()
@@ -87,6 +104,8 @@ impl<T: Serializable> Serializable for Option<T> {
             Node::Null
         }
     }
+}
+impl<T: Serializable> Serializable for Option<T> {
     fn instantiate(node: &Node, tree: &Tree) -> Option<Self> {
         if let Node::Null = node {
             Some(None)
@@ -101,10 +120,12 @@ impl<T: Serializable> Serializable for Option<T> {
     }
 }
 
-impl<T: Serializable> Serializable for Vec<T> {
+impl<T: Convert> Convert for Vec<T> {
     fn convert(&self) -> Node {
         Tree::array(self.iter().map(|value| value.convert()).collect())
     }
+}
+impl<T: Serializable> Serializable for Vec<T> {
     fn instantiate(node: &Node, tree: &Tree) -> Option<Self> {
         if let Some(items) = tree.get_items(node) {
             let mut values = Vec::with_capacity(items.len());

@@ -8,9 +8,7 @@ use std::fs;
 pub fn parse_twitter(criterion: &mut Criterion) {
     const TWITTER: &str = r"resources/twitter.json";
     let json = fs::read_to_string(TWITTER).unwrap();
-    let mut group = criterion.benchmark_group("twitter");
-    group.bench_function("parse", |bencher| bencher.iter(|| parse(&json)));
-    group.finish();
+    criterion.bench_function("parse twitter", |bencher| bencher.iter(|| parse(&json)));
 }
 
 criterion_group!(benches, parse_twitter);

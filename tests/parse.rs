@@ -1,7 +1,7 @@
 extern crate json;
 extern crate proptest;
 
-use json::{Node, Serializable};
+use json::*;
 use proptest::prelude::*;
 use std::fs;
 
@@ -11,13 +11,13 @@ fn parse(json: &str) -> Node {
     tree.root
 }
 
-fn convert<T: Serializable>(value: &T) -> Node {
+fn convert<T: Convert>(value: &T) -> Node {
     let mut tree = json::convert(value);
     tree.process();
     tree.root
 }
 
-fn generate<T: Serializable>(value: &T) -> String {
+fn generate<T: Convert>(value: &T) -> String {
     json::generate(&json::convert(value))
 }
 
@@ -63,16 +63,22 @@ fn parse_unbalanced_string() {
 #[test]
 #[should_panic]
 fn parse_quote_string() {
-    let value = r#"""""#;
-    let tree = json::parse(value).unwrap();
-    assert_eq!(tree.get_string(&tree.root).unwrap(), r#"""#);
+    assert_eq!(parse(r#"""""#), Node::String(r#"""#.into()));
 }
 
 #[test]
-fn parse_tab_string() {
-    let value = r#""\t""#;
-    let tree = json::parse(value).unwrap();
-    assert_eq!(tree.get_string(&tree.root).unwrap(), "\t");
+fn parse_space_strings() {
+    assert_eq!(parse(r#""\t""#), Node::String("\t".into()));
+    assert_eq!(parse(r#""\n""#), Node::String("\n".into()));
+    assert_eq!(parse(r#""\r""#), Node::String("\r".into()));
+    assert_eq!(parse(r#"" ""#), Node::String(" ".into()));
+}
+
+#[test]
+fn parse_slash_strings() {
+    assert_eq!(parse(r#""\""#), Node::String("\\".into()));
+    assert_eq!(parse(r#""/""#), Node::String("/".into()));
+    assert_eq!(parse(r#""\/""#), Node::String("/".into()));
 }
 
 #[test]
@@ -141,8 +147,7 @@ proptest! {
 
     #[test]
     fn parse_alpha_numerical_strings(value in "[a-zA-Z0-9]+") {
-        let tree = json::parse(&format!(r#""{0}""#, value)).unwrap();
-        prop_assert_eq!(tree.get_string(&tree.root).unwrap(), &value);
+        prop_assert_eq!(parse(&format!(r#""{0}""#, value)), Node::String(value));
     }
 
     #[test]
@@ -156,14 +161,12 @@ proptest! {
             .replace(r"\\", r"\")
             .replace(r#"\""#, r#"""#)
             .replace(r"\/", "/");
-        let tree = json::parse(&format!(r#""{0}""#, escaped)).unwrap();
-        prop_assert_eq!(tree.get_string(&tree.root).unwrap(), &value);
+        prop_assert_eq!(parse(&format!(r#""{0}""#, escaped)), Node::String(value));
     }
 
-    // there seem to be a bug in regexes...
     // #[test]
-    // fn parse_unicode_strings(value in r"\u[0-9a-fA-F]{4}") {
+    // fn parse_unicode_strings(value in "[0-9a-fA-F]{4}") {
+    //     let value = format!(r"\u{}", value);
     //     println!("{}", &value);
-    //     panic!("sdfkj");
     // }
 }

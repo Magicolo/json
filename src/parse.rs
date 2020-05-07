@@ -228,9 +228,7 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                         match character {
                             b'\\' => {
                                 let end = stream.index - 1;
-                                if index < end {
-                                    text.push_str(&json[index..end]);
-                                }
+                                text.push_str(&json[index..end]);
 
                                 if let Some(character) = stream.next() {
                                     match character {
@@ -284,9 +282,7 @@ pub fn parse(json: &str) -> Result<Tree, String> {
                             }
                             b'"' => {
                                 let end = stream.index - 1;
-                                if index < end {
-                                    text.push_str(&json[index..end]);
-                                }
+                                text.push_str(&json[index..end]);
                                 stack.push(Node::RawString((start, text.len())));
                                 break;
                             }

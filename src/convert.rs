@@ -1,11 +1,7 @@
 use crate::*;
 
-pub fn convert<T: Serializable>(value: &T) -> Tree {
-    Tree {
-        root: value.convert(),
-        nodes: Vec::new(),
-        text: String::new(),
-    }
+pub fn convert<T: Convert>(value: &T) -> Tree {
+    Tree::new(value.convert())
 }
 
 impl<T: Serializable> From<&T> for Tree {
