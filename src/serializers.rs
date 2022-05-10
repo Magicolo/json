@@ -13,7 +13,7 @@ macro_rules! number {
     ($type: ident) => {
         impl Convert for $type {
             fn convert(&self) -> Node {
-                Tree::number(*self as f64)
+                Node::Number(*self as f64)
             }
         }
         impl Serializable for $type {
@@ -46,7 +46,7 @@ number!(f64);
 
 impl Convert for bool {
     fn convert(&self) -> Node {
-        Tree::boolean(*self)
+        Node::Boolean(*self)
     }
 }
 impl Serializable for bool {
@@ -62,7 +62,7 @@ impl Serializable for bool {
 
 impl Convert for char {
     fn convert(&self) -> Node {
-        Tree::number(*self as u8 as f64)
+        Node::Number(*self as u8 as f64)
     }
 }
 impl Serializable for char {
@@ -80,7 +80,7 @@ impl Serializable for char {
 
 impl Convert for String {
     fn convert(&self) -> Node {
-        Tree::string(self)
+        Node::String(self.clone())
     }
 }
 impl Serializable for String {
@@ -92,7 +92,7 @@ impl Serializable for String {
 
 impl Convert for &str {
     fn convert(&self) -> Node {
-        Tree::string(self)
+        Node::String(String::from(*self))
     }
 }
 
@@ -122,7 +122,7 @@ impl<T: Serializable> Serializable for Option<T> {
 
 impl<T: Convert> Convert for Vec<T> {
     fn convert(&self) -> Node {
-        Tree::array(self.iter().map(|value| value.convert()).collect())
+        Node::Array(self.iter().map(|value| value.convert()).collect())
     }
 }
 impl<T: Serializable> Serializable for Vec<T> {
